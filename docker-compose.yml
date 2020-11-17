@@ -1,0 +1,114 @@
+version: "3.7"
+
+networks:
+  pdc:
+    driver: overlay
+    attachable: true
+
+services:
+
+  traefik:
+    image: "traefik:v2.2"
+    hostname: traefik
+    ports:
+      - "80:80"
+      - "8080:8080" # traefik dashboard
+      - "443:443"
+    command:
+      - --api.insecure=true # set to 'false' on production
+      - --api.dashboard=true # see https://docs.traefik.io/v2.0/operations/dashboard/#secure-mode for how to secure the dashboard
+      - --api.debug=true # enable additional endpoints for debugging and profiling
+      - --log.level=DEBUG # debug while we get it working, for more levels/info see https://docs.traefik.io/observability/logs/
+      - --providers.docker=true
+      - --providers.docker.swarmMode=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.web-secured.address=:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - pdc
+    deploy:
+      labels:
+        - "traefik.enable=true"
+
+  launcher:
+    image: "lucascoraca/pdc_dev:launcher"
+    hostname: launcher
+    restart: always
+    deploy:
+     labels:
+      - "traefik.enable=true"
+      - "traefik.backend=launcher"
+      - "traefik.docker.network=pdc"
+      - "traefik.http.routers.launcher.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.launcher.entrypoints=web"
+      - "traefik.http.services.launcher.loadbalancer.server.port=80"
+      - "traefik.port=80"
+    networks:
+      - pdc
+      
+  system:
+    image: "lucascoraca/pdc_dev:system"
+    hostname: system
+    volumes:
+     - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    restart: always
+    deploy:
+     placement:
+      constraints:
+       - "node.role==manager"
+     labels:
+       - "traefik.enable=true"
+       - "traefik.http.routers.system.rule=PathPrefix(`/system`)"
+       - "traefik.http.routers.system.entrypoints=web"
+       - "traefik.http.services.system.loadbalancer.server.port=80"
+    networks:
+      - pdc
+   
+  store:
+   image: "lucascoraca/pdc_dev:store"
+   hostname: store
+   restart: always
+   deploy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.store.rule=PathPrefix(`/store`)"
+      - "traefik.http.routers.store.entrypoints=web"
+      - "traefik.http.services.store.loadbalancer.server.port=80"
+   networks:
+     - pdc
+
+  authorizator:
+   image: "lucascoraca/pdc_dev:authorizator"
+   hostname: authorizator
+   restart: always
+   deploy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authorizator.rule=PathPrefix(`/authorizator`)"
+      - "traefik.http.routers.authorizator.entrypoints=web"
+      - "traefik.http.services.authorizator.loadbalancer.server.port=80"
+   networks:
+     - pdc
+
+
+  mariadb:
+   image: ghcr.io/linuxserver/mariadb
+   hostname: mariadb
+   environment:
+    PUID: 1000
+    PGID: 1000
+    MYSQL_ROOT_PASSWORD: pdc_dev
+   restart: always
+   networks:
+    - pdc
+
+  adminer:
+   image: adminer
+   restart: always
+   ports:
+    - 8081:8080
+   networks:
+     - pdc
