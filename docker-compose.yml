@@ -30,13 +30,15 @@ services:
     networks:
       - pdc
     deploy:
+     placement:
+      constraints:
+       - "node.role==manager"
       labels:
         - "traefik.enable=true"
 
   launcher:
     image: "lucascoraca/pdc_dev:launcher"
     hostname: launcher
-    restart: always
     deploy:
      labels:
       - "traefik.enable=true"
@@ -54,7 +56,6 @@ services:
     hostname: system
     volumes:
      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    restart: always
     deploy:
      placement:
       constraints:
@@ -70,7 +71,6 @@ services:
   store:
    image: "lucascoraca/pdc_dev:store"
    hostname: store
-   restart: always
    deploy:
     labels:
       - "traefik.enable=true"
@@ -83,7 +83,6 @@ services:
   authorizator:
    image: "lucascoraca/pdc_dev:authorizator"
    hostname: authorizator
-   restart: always
    deploy:
     labels:
       - "traefik.enable=true"
@@ -101,13 +100,11 @@ services:
     PUID: 1000
     PGID: 1000
     MYSQL_ROOT_PASSWORD: pdc_dev
-   restart: always
    networks:
     - pdc
 
   adminer:
    image: adminer
-   restart: always
    ports:
     - 8081:8080
    networks:
