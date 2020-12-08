@@ -100,6 +100,12 @@ services:
     PUID: 1000
     PGID: 1000
     MYSQL_ROOT_PASSWORD: pdc_dev
+   volumes:
+    - ./db:/var/lib/mysql
+   deploy:
+     placement:
+      constraints:
+       - "node.role==manager"
    networks:
     - pdc
 
