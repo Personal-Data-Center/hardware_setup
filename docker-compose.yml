@@ -101,7 +101,7 @@ services:
     PGID: 1000
     MYSQL_ROOT_PASSWORD: pdc_dev
    volumes:
-    - ./db:/var/lib/mysql
+    - ./db:/config
    deploy:
      placement:
       constraints:
